@@ -1,0 +1,51 @@
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  ServiceName:
+    Type: String
+
+Resources:
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [!Ref ServiceName, '-alb']]
+      Scheme: internet-facing
+      Type: application
+      IpAddressType: ipv4
+      Subnets: !Ref PublicSubnetIds
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref ServiceName, '-alb']]
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [!Ref ServiceName, '-tg']]
+      VpcId: !Ref VpcId
+      Port: 80
+      Protocol: HTTP
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /health
+      Matcher: { HttpCode: '200' }
+      TargetType: ip
+      Tags:
+        - Key: Name
+          Value: !Join ['', [!Ref ServiceName, '-tg']]
+
+Outputs:
+  AlbArn:
+    Value: !Ref ALB
+    Export:
+      Name: !Join ['-', [!Ref 'AWS::StackName', 'AlbArn']]

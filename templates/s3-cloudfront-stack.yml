@@ -1,0 +1,42 @@
+Parameters:
+  BucketName:
+    Type: String
+    Description: The name of the S3 bucket to create
+  IndexDocument:
+    Type: String
+    Description: The name of the index document for the S3 bucket website
+  ErrorDocument:
+    Type: String
+    Description: The name of the error document for the S3 bucket website
+
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: !Ref IndexDocument
+        ErrorDocument: !Ref ErrorDocument
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: !Ref IndexDocument
+        Origins:
+          - DomainName: !GetAtt Bucket.DomainName
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+          MinTTL: 0
+          MaxTTL: 31536000
+          DefaultTTL: 86400

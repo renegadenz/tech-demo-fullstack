@@ -1,0 +1,80 @@
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  ServiceName:
+    Type: String
+  AlbArnExportName:
+    Type: String
+    Default: ''
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join ['', [!Ref ServiceName, '-static-content']]
+      AccessControl: Private
+
+  AlbStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://<bucket-name>.s3.<region>.amazonaws.com/alb-stack.yaml
+      Parameters:
+        VpcId: !Ref VpcId
+        PublicSubnetIds: !Ref PublicSubnetIds
+        ServiceName: !Ref ServiceName
+      TimeoutInMinutes: 5
+
+  ECSStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://<bucket-name>.s3.<region>.amazonaws.com/ecs-stack.yaml
+      Parameters:
+        VpcId: !Ref VpcId
+        SubnetIds: !Ref PrivateSubnetIds
+        ServiceName: !Ref ServiceName
+        AlbArnExportName: !Ref AlbArnExportName
+      TimeoutInMinutes: 5
+
+Outputs:
+  S3BucketName:
+    Value: !Ref S3Bucket
+
+  AlbDnsName:
+    Value: !GetAtt AlbStack.Outputs.AlbDnsName
+
+  AlbArn:
+    Value: !GetAtt AlbStack.Outputs.AlbArn
+
+  ECSAutoScalingGroupName:
+    Value: !Join ['', [!Ref ServiceName, '-asg']]
+
+  ECSAutoScalingGroupArn:
+    Value: !GetAtt ECSStack.Outputs.ECSAutoScalingGroupArn
+
+  ECSAutoScalingGroupDesiredCapacity:
+    Value: !GetAtt ECSStack.Outputs.ECSAutoScalingGroupDesiredCapacity
+
+  ECSAutoScalingGroupMaxSize:
+    Value: !GetAtt ECSStack.Outputs.ECSAutoScalingGroupMaxSize
+
+  ECSAutoScalingGroupMinSize:
+    Value: !GetAtt ECSStack.Outputs.ECSAutoScalingGroupMinSize
+
+  ECSLaunchTemplateName:
+    Value: !Join ['', [!Ref ServiceName, '-launch-template']]
+
+  ECSRoleArn:
+    Value: !GetAtt ECSStack.Outputs.ECSRoleArn
+
+  ECSClusterArn:
+    Value: !GetAtt ECSStack.Outputs.ECSClusterArn
+
+  PublicSubnetIds:
+    Value: !Join [',', !Ref PublicSubnetIds]
+
+  PrivateSubnetIds:
+    Value: !Join [',', !Ref PrivateSubnetIds]

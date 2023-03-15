@@ -1,0 +1,99 @@
+Parameters:
+  BucketName:
+    Type: String
+    Description: The name of the existing S3 bucket to deploy the static content to
+  RepositoryName:
+    Type: String
+    Description: The name of the CodeCommit repository to create and deploy
+  RepositoryDescription:
+    Type: String
+    Description: A description for the CodeCommit repository
+
+Resources:
+  Repository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref RepositoryName
+      RepositoryDescription: !Ref RepositoryDescription
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ['', [!Ref RepositoryName, '-codepipeline-role']]
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Path: "/"
+      Policies:
+        - PolicyName: !Join ['', [!Ref RepositoryName, '-codepipeline-policy']]
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+                  - s3:PutObject
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketLifecycleConfiguration
+                Resource: !Join ['', ['arn:aws:s3:::', !Ref BucketName, '/*']]
+              - Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codepipeline:*
+                  - codecommit:*
+                Resource: "*"
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Join ['', [!Ref RepositoryName, '-pipeline']]
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref BucketName
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: CheckoutCodeCommit
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: 1
+              OutputArtifacts:
+                - Name: SourceCode
+              Configuration:
+                RepositoryName: !Ref Repository
+                BranchName: master
+                PollForSourceChanges: true
+            - Name: Package
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceCode
+              OutputArtifacts:
+                - Name: BuildArtifact
+              Configuration:
+                ProjectName: !Join ['', [!Ref RepositoryName, '-codebuild']]
+          - Name: Deploy
+            Actions:
+              - Name: DeployToS3
+                ActionTypeId:
+                  Category: Deploy
+                  Owner: AWS
+                  Provider: S3
+                  Version: '1'
+                InputArtifacts:
+                  - Name: BuildArtifact
+                Configuration:
+                  BucketName: !Ref BucketName
+                  Extract: true
+                  ObjectKey: 'index.html'
+                  CacheControl: 'max-age=3600,public'

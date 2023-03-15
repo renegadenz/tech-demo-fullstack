@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>My Flask App</title>
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+	<h1>My Flask App</h1>
+	<p>Click the button to call the API:</p>
+	<button onclick="callAPI()">Call API</button>
+	<div id="result"></div>
+
+	<script>
+		function callAPI() {
+			$.ajax({
+				url: "/",
+				type: "GET",
+				success: function(response) {
+					$("#result").html("<pre>" + JSON.stringify(response, null, 4) + "</pre>");
+				},
+				error: function(xhr, status, error) {
+					$("#result").html("<p>Error calling API: " + error + "</p>");
+				}
+			});
+		}
+	</script>
+</body>
+</html>
