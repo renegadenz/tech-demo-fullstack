@@ -1,4 +1,4 @@
-#Tech Demo - WIP
+# Tech Demo - WIP
 
 Flask app: A basic Flask app with Swagger and Prometheus metrics that runs in a Docker container. It includes a simple frontend that consumes the Flask app via AJAX. The app is deployed to an EC2 instance or an ECS service, depending on the deployment model you choose.
 

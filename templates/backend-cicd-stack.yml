@@ -8,61 +8,147 @@ Parameters:
   ImageTag:
     Type: String
     Default: 'latest'
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-  PublicSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-  PrivateSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-  CodeBuildServiceRoleArn:
-    Type: String
   CodeBuildImage:
     Type: String
-  CodePipelineServiceRoleArn:
-    Type: String
+    Default: 'aws/codebuild/standard:5.0'
 
 Resources:
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+  # CodeCommit repository
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref CodeCommitRepoName
+
   # ECR repository
   ECRRepo:
     Type: AWS::ECR::Repository
     Properties:
       RepositoryName: !Ref ECRRepoName
 
+  # CodeBuild IAM role
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetRepositoryPolicy
+                  - ecr:DescribeRepositories
+                  - ecr:ListImages
+                  - ecr:BatchGetImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - codecommit:GitPull
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                Resource: '*'
+
+  # CodePipeline IAM role
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - codebuild:*
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+                  - s3:PutObject
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:*
+                Resource: '*'
+
+
   # CodeBuild project
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Join ['', [!Ref ServiceName, '-build']]
-      ServiceRole: !Ref CodeBuildServiceRoleArn
+      ServiceRole: !GetAtt CodeBuildRole.Arn
       Environment:
         ComputeType: BUILD_GENERAL1_SMALL
         Image: !Ref CodeBuildImage
         Type: LINUX_CONTAINER
         PrivilegedMode: true
+        EnvironmentVariables: 
+          - Name: IMAGE_TAG
+            Value: !Ref ImageTag
+          - Name: ECR_REPO_URI
+            Value: !Join ['', [!Ref 'AWS::AccountId', '.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref ECRRepoName]]
       Source:
         Type: CODECOMMIT
         Location: !Join ['', ['https://git-codecommit.', !Ref 'AWS::Region', '.amazonaws.com/v1/repos/', !Ref CodeCommitRepoName]]
       Artifacts:
         Type: NO_ARTIFACTS
-      EnvironmentVariables:
-        - Name: IMAGE_TAG
-          Value: !Ref ImageTag
-        - Name: ECR_REPO_URI
-          Value: !Join ['', [!Ref 'AWS::AccountId', '.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref ECRRepoName]]
       TimeoutInMinutes: 5
       LogsConfig:
         CloudWatchLogs:
           GroupName: !Join ['', ['/aws/codebuild/', !Ref ServiceName, '-build']]
-          StreamName: !Join ['', ['/aws/codebuild/', !Ref ServiceName, '-build-', !Ref 'AWS::CodeBuild::BuildId']]
-
-  # CodePipeline
+          Status: ENABLED
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
       Name: !Join ['', [!Ref ServiceName, '-pipeline']]
-      RoleArn: !Ref CodePipelineServiceRoleArn
+      RoleArn: !GetAtt CodePipelineRole.Arn
       ArtifactStore:
-        Location: !Join ['', ['s3://', !Ref 'AWS::AccountId', '-codepipeline-us-east-1']]
+        Location: !Ref ArtifactBucket 
         Type: S3
       Stages:
         - Name: Source
@@ -74,4 +160,23 @@ Resources:
                 Version: '1'
                 Provider: CodeCommit
               OutputArtifacts:
-                - Name
+                - Name: SourceOutput
+              Configuration:
+                RepositoryName: !Ref CodeCommitRepoName
+                BranchName: 'main'
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: '1'
+                Provider: CodeBuild
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              RunOrder: 1
