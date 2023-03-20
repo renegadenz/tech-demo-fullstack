@@ -24,3 +24,5 @@ Below is a diagram illustrating the outcome.
 
 
 Please note this is purely a demo I wouldn't expect anyone to have a such complex infrastructure for a simple hello world app. I may expand this deployment at a future date.
+
+WIP I will add deployment steps and more documentation as I get each component working.
