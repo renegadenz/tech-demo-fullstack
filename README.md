@@ -1,18 +1,20 @@
 # Tech Demo - WIP
 
-Flask app: A basic Flask app with Swagger and Prometheus metrics that runs in a Docker container. It includes a simple frontend that consumes the Flask app via AJAX. The app is deployed to an EC2 instance or an ECS service, depending on the deployment model you choose.
+This is a full stack cloudformation deployment that covers both backend and frontend infrastructure required to host Microservices and Static Content. On top of the infrasructure deployments I have put together a CI/CD workflow using AWS Tooling such as AWS code pipeline, Code Build and Code Commit. 
 
-Static content: The static content for the frontend, which includes HTML, CSS, and JavaScript files. The static content is stored in an S3 bucket and served via CloudFront.
+At some point I may add an Observability and logging to the deployment but for now this deployment is kept simple as there is quite a lot of infrastructure as code that has been created for this simple website and backend.
 
-CloudFormation templates: The CloudFormation templates that create and manage the infrastructure for the Flask app and the static content. The templates include the following:
+The front end is build on html with basic css I'm not a Devops Engineer not a Developer so I haven't put a lot of time into making it pretty this is purely to test the workflow of the infrsatructure. Again for the backend we have a very simple flask based python application I've also setup swagger for the api gateway integration.
 
-Root stack: A top-level CloudFormation stack that orchestrates the deployment of all the resources required for the Flask app and the static content. This stack includes references to the nested stacks that create the individual resources.
-ALB stack: A nested CloudFormation stack that creates an Application Load Balancer to route traffic to the Flask app or the static content.
-ECS stack: A nested CloudFormation stack that creates an ECS cluster, an ECS service, and an Auto Scaling Group to run the Flask app in Docker containers. If you choose the EC2 deployment model, this stack also includes a Launch Configuration to define the EC2 instance configuration. If you choose the ECS deployment model, this stack includes an ECS task definition to define the Docker container configuration.
-Launch Template stack: A nested CloudFormation stack that creates a Launch Template to define the EC2 instance configuration for the ECS stack.
-CodePipeline: A pipeline that deploys the Flask app to an EC2 instance or an ECS service. The pipeline includes the following stages:
+The cloud formation deployments have been broken up into core, backend, and frontend deployments and API gateway
 
-Source: Connects to the CodeCommit repository that contains the Flask app code as the source.
-Build: Uses CodeBuild to build the Docker image and push it to ECR.
-Deploy: Uses the ECS deploy action to deploy the new Docker image to the ECS service or an EC2 instance.
-This setup allows for a fully automated deployment pipeline, from code commit to running the Flask app in production.
+* The core represents the core components which will be the Elastic Container Service Cluster and the Application Load balancer. This will need to be deployed first.
+* Frontend hosts the Frontend cloudformation templates that are used to deploy cloudfront and S3 bucket that will host the website. The deploymment also as a CI/CD aspect to it. THe idea is developer will use code commit to store their code which will trigger code pipeline to deploy onto S3. 
+* Backend this deploys the ecs service and alb context routing along with the pipeline that builds and deploys the container to ECS
+* Fially we have the api gateway configuration which we take swagger file and deploy the api gateway configuration that will integrate the frontend and backend together.
+
+Conceptually we are covering both backend and front end infrastructure deployments, CI/CD workflow to manage our code and code deployments and api gateway.
+
+Below is a diagram illustrating the final outcome.
+
+![Diagram](doc/Fullstack-demo-Diagram.png)
