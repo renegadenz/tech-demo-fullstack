@@ -2,7 +2,7 @@
 <html>
 <head>
 	<title>My Flask App</title>
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 	<h1>My Flask App</h1>
@@ -12,15 +12,18 @@
 
 	<script>
 		function callAPI() {
-			$.ajax({
-				url: "/",
-				type: "GET",
-				success: function(response) {
-					$("#result").html("<pre>" + JSON.stringify(response, null, 4) + "</pre>");
-				},
-				error: function(xhr, status, error) {
-					$("#result").html("<p>Error calling API: " + error + "</p>");
+			fetch('https://<api-gateway-id>.execute-api.<region>.amazonaws.com/prod/', {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json'
 				}
+			})
+			.then(response => response.json())
+			.then(data => {
+				document.getElementById("result").innerHTML = "<pre>" + JSON.stringify(data, null, 4) + "</pre>";
+			})
+			.catch(error => {
+				document.getElementById("result").innerHTML = "<p>Error calling API: " + error + "</p>";
 			});
 		}
 	</script>
