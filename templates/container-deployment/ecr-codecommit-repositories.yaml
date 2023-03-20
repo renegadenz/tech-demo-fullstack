@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  CodeCommitRepoName:
+    Type: String
+    Description: The name of the CodeCommit repository.
+  ECRRepoName:
+    Type: String
+    Description: The name of the ECR repository.
+
+Resources:
+  # CodeCommit repository
+  CodeCommitRepo:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: !Ref CodeCommitRepoName
+
+  # ECR repository
+  ECRRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref ECRRepoName
+
+Outputs:
+  ECRRepoName:
+    Description: ECR Repository Name
+    Value: !Ref ECRRepo
+  CodeCommitRepo:
+    Description: CodeCommit Repository Name
+    Value: !Ref CodeCommitRepo

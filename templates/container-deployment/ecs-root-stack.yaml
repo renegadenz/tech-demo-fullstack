@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  CodeCommitRepoName:
+    Type: String
+  ECRRepoName:
+    Type: String
+  ServiceName:
+    Type: String
+  ImageTag:
+    Type: String
+    Default: 'latest'
+  CodeBuildImage:
+    Type: String
+    Default: 'aws/codebuild/standard:5.0'
+  TaskDefinitionFamily:
+    Type: String
+  ClusterName:
+    Type: String
+  DesiredCount:
+    Type: Number
+  LoadBalancerArn:
+    Type: String
+  ListenerArn:
+    Type: String
+
+Resources:
+  ECSResourcesStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://your-s3-bucket.s3.amazonaws.com/ecs-ec2-resources.yaml'
+      Parameters:
+        ECRRepoName: !Ref ECRRepoName
+        TaskDefinitionFamily: !Ref TaskDefinitionFamily
+
+  ECSPipelineStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://your-s3-bucket.s3.amazonaws.com/ecs-codepipeline.yaml'
+      Parameters:
+        CodeCommitRepoName: !Ref CodeCommitRepoName
+        ECRRepoName: !Ref ECRRepoName
+        ServiceName: !Ref ServiceName
+        ImageTag: !Ref ImageTag
+        CodeBuildImage: !Ref CodeBuildImage
+        TaskDefinitionFamily: !Ref TaskDefinitionFamily
+
+  ECSDeploymentStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: 'https://your-s3-bucket.s3.amazonaws.com/ecs-ec2-deployment.yaml'
+      Parameters:
+        TaskDefinitionFamily: !Ref TaskDefinitionFamily
+        ClusterName: !Ref ClusterName
+        DesiredCount: !Ref DesiredCount
+        LoadBalancerArn: !Ref LoadBalancerArn
+        ListenerArn: !Ref ListenerArn

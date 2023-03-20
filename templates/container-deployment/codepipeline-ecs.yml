@@ -1,6 +1,11 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
 Parameters:
   CodeCommitRepoName:
     Type: String
+  CodeBuildImage:
+    Type: String
+    Default: 'aws/codebuild/standard:5.0'
   ECRRepoName:
     Type: String
   ServiceName:
@@ -8,25 +13,19 @@ Parameters:
   ImageTag:
     Type: String
     Default: 'latest'
-  CodeBuildImage:
+  ExistingClusterName:
     Type: String
-    Default: 'aws/codebuild/standard:5.0'
+  TaskDefinitionFamily:
+    Type: String
+  ECSAppName:
+    Type: String
+  ECSServiceName:
+    Type: String
 
 Resources:
 
   ArtifactBucket:
     Type: AWS::S3::Bucket
-  # CodeCommit repository
-  CodeCommitRepo:
-    Type: AWS::CodeCommit::Repository
-    Properties:
-      RepositoryName: !Ref CodeCommitRepoName
-
-  # ECR repository
-  ECRRepo:
-    Type: AWS::ECR::Repository
-    Properties:
-      RepositoryName: !Ref ECRRepoName
 
   # CodeBuild IAM role
   CodeBuildRole:
@@ -114,7 +113,10 @@ Resources:
                 Action:
                   - ecr:*
                 Resource: '*'
-
+              - Effect: Allow
+                Action:
+                  - codedeploy:*
+                Resource: '*'
 
   # CodeBuild project
   CodeBuildProject:
@@ -180,3 +182,45 @@ Resources:
               Configuration:
                 ProjectName: !Ref CodeBuildProject
               RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: '1'
+                Provider: CodeDeployToECS
+              InputArtifacts:
+                - Name: BuildOutput
+              Configuration:
+                ApplicationName: !Ref CodeDeployApplication
+                DeploymentGroupName: !Ref CodeDeployDeploymentGroup
+              RunOrder: 1
+  CodeDeployApp:
+    Type: AWS::CodeDeploy::App
+    Properties:
+      ApplicationName: !Ref ECSAppName
+      ComputePlatform: 'ECS'
+
+  CodeDeployDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName: !Ref CodeDeployApp
+      DeploymentGroupName: !Join ['', [!Ref ServiceName, '-deployment-group']]
+      DeploymentConfigName: 'CodeDeployDefault.ECSAllAtOnce'
+      ServiceRoleArn: !GetAtt CodePipelineRole.Arn
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - 'DEPLOYMENT_FAILURE'
+      BlueGreenDeploymentConfiguration:
+        DeploymentReadyOption:
+          ActionOnTimeout: 'CONTINUE_DEPLOYMENT'
+        TerminateBlueInstancesOnDeploymentSuccess:
+          Action: 'TERMINATE_OLD_BUNDLE'
+      DeploymentStyle:
+        DeploymentType: 'BLUE_GREEN'
+        DeploymentOption: 'WITH_TRAFFIC_CONTROL'
+      EcsServices:
+        - ServiceName: !Ref ECSServiceName
+          ClusterName: !Ref ExistingClusterName

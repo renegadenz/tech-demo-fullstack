@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ExistingClusterName:
+    Type: String
+    Description: The name of the existing ECS cluster.
+  ECRRepoName:
+    Type: String
+    Description: The name of the ECR repository.
+  TaskDefinitionFamily:
+    Type: String
+    Description: The family name for the Task Definition.
+  ContainerName:
+    Type: String
+    Description: The name of the container in the Task Definition.
+  ContainerPort:
+    Type: Number
+    Description: The port on which the container listens.
+  ContainerImageTag:
+    Type: String
+    Default: 'latest'
+    Description: The tag for the container image in the ECR repository.
+  LoadBalancerArn:
+    Type: String
+    Description: The ARN of the existing ALB.
+  ListenerArn:
+    Type: String
+    Description: The ARN of the existing ALB listener.
+  TargetGroupPathPattern:
+    Type: String
+    Description: The path pattern for the target group.
+  Priority:
+    Type: Number
+    Description: The priority for the listener rule.
+
+Resources:
+  # Amazon ECS Task Definition
+  ECSTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref TaskDefinitionFamily
+      NetworkMode: bridge
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      TaskRoleArn: !Ref ECSTaskRole
+      ContainerDefinitions:
+        - Name: !Ref ContainerName
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepoName}:${ContainerImageTag}"
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  # Amazon ECS Task Execution Role
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+  
+  # Amazon ECS Service
+  ECSService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ExistingClusterName
+      ServiceName: !Join ['', [!Ref TaskDefinitionFamily, '-service']]
+      TaskDefinition: !Ref ECSTaskDefinition
+      DesiredCount: !Ref DesiredCount
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      LaunchType: EC2
+      LoadBalancers:
+        - TargetGroupArn: !Ref ECSTargetGroup
+          ContainerName: !Ref ContainerName
+          ContainerPort: !Ref ContainerPort
+
+  # Amazon ECS Task Role
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: ECSTaskPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Add any additional permissions needed for your application
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt LogGroup.Arn
+
+  # Amazon CloudWatch Logs Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+
+  ECSTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Join ['', [!Ref ServiceName, '-target-group']]
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref 'AWS::VpcId'
+      TargetType: instance
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '200'
+
+  # Add Listener Rule for path-based routing
+  ECSListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref ListenerArn
+      Priority: !Ref Priority
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - !Ref TargetGroupPathPattern
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref ECSTargetGroup

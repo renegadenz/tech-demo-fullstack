@@ -1,0 +1,43 @@
+[
+    {
+      "ParameterKey": "CodeCommitRepoName",
+      "ParameterValue": "my-codecommit-repo"
+    },
+    {
+      "ParameterKey": "ECRRepoName",
+      "ParameterValue": "my-ecr-repo"
+    },
+    {
+      "ParameterKey": "ServiceName",
+      "ParameterValue": "my-service"
+    },
+    {
+      "ParameterKey": "ImageTag",
+      "ParameterValue": "latest"
+    },
+    {
+      "ParameterKey": "CodeBuildImage",
+      "ParameterValue": "aws/codebuild/standard:5.0"
+    },
+    {
+      "ParameterKey": "TaskDefinitionFamily",
+      "ParameterValue": "my-task-definition-family"
+    },
+    {
+      "ParameterKey": "ClusterName",
+      "ParameterValue": "my-existing-cluster"
+    },
+    {
+      "ParameterKey": "DesiredCount",
+      "ParameterValue": "2"
+    },
+    {
+      "ParameterKey": "LoadBalancerArn",
+      "ParameterValue": "arn:aws:elasticloadbalancing:region:account-id:loadbalancer/app/my-load-balancer/50dc6c495c0c9188"
+    },
+    {
+      "ParameterKey": "ListenerArn",
+      "ParameterValue": "arn:aws:elasticloadbalancing:region:account-id:listener/app/my-load-balancer/50dc6c495c0c9188/f2f7dc8efc522ab2"
+    }
+  ]
+  
