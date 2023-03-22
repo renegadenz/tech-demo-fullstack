@@ -1,28 +1,25 @@
-# Tech Demo - Work in progress
+# Tech Demo - Work in Progress
 
-## Intro
-This is a full stack cloudformation deployment that covers both backend and frontend infrastructure required to host Microservices and Static Content. On top of the infrasructure deployments I have put together a CI/CD workflow using AWS Tooling such as AWS code pipeline, Code Build, and Code Commit. 
+## Introduction
+This tech demo showcases a full-stack CloudFormation deployment that includes both backend and frontend infrastructure needed to host microservices and static content. The deployment features a CI/CD workflow using AWS tools such as AWS CodePipeline, CodeBuild, and CodeCommit. 
 
-At some point, I may add Observability and logging to theis builtent but for now, this deployment is kept simple as there is quite a lot of infrastructure as code that has been created for this simple website and backend.
+While observability and logging may be added in the future, the current focus is on keeping the deployment simple due to the substantial infrastructure-as-code created for this basic website and backend. The frontend is built using HTML and basic CSS for testing purposes, and the backend is a simple Flask-based Python application with Swagger integrated for API Gateway.
 
-The front end is build on html with basic css. This is purely to test the workflow of the infrsatructure. Again for the backend we have a very simple flask based python application I've also setup swagger for the api gateway integration.
+## CloudFormation Deployments
+The CloudFormation deployments are divided into core, backend, frontend, and API Gateway components:
 
-## Cloudformation Deployments
-The cloud formation deployments have been broken up into core, backend, and frontend deployments and API gateway
+* **Core**: Includes core components such as the Elastic Container Service (ECS) Cluster and the Application Load Balancer (ALB), which must be deployed first.
+* **Frontend**: Hosts the frontend CloudFormation templates used to deploy CloudFront and an S3 bucket for hosting the website. This deployment also includes a CI/CD aspect, allowing developers to use CodeCommit for code storage, which then triggers CodePipeline to deploy onto S3.
+* **Backend**: Deploys the ECS service, ALB context routing, and the pipeline responsible for building and deploying the container to ECS.
+* **API Gateway**: Configures the API Gateway using a Swagger file and deploys the integrated frontend and backend.
 
-* The core represents the core components which will be the Elastic Container Service Cluster and the Application Load balancer. This will need to be deployed first.
-* Frontend hosts the Frontend cloudformation templates that are used to deploy cloudfront and S3 bucket that will host the website. The deploymment also as a CI/CD aspect to it. THe idea is developer will use code commit to store their code which will trigger code pipeline to deploy onto S3. 
-* Backend this deploys the ecs service and alb context routing along with the pipeline that builds and deploys the container to ECS
-* Fially we have the api gateway configuration which we take swagger file and deploy the api gateway configuration that will integrate the frontend and backend together.
+The tech demo covers backend and frontend infrastructure deployments, a CI/CD workflow for managing code and deployments, and API Gateway. The diagram below illustrates the overall architecture:
 
-Conceptually we are covering both backend and front end infrastructure deployments, CI/CD workflow to manage our code and code deployments and api gateway.
-
-Below is a diagram illustrating the outcome.
 ### Diagram
 
 ![Diagram](doc/Fullstack-demo-Diagram.png)
 
+Please note that this is a demo and not intended for real-world use cases with such complex infrastructure for a simple "Hello, World!" application. The deployment may be expanded in the future.
 
-Please note this is purely a demo I wouldn't expect anyone to have a such complex infrastructure for a simple hello world app. I may expand this deployment at a future date.
-
-WIP I will add deployment steps and more documentation as I get each component working.
+## Work in Progress
+More detailed deployment steps and documentation will be added as each component is developed and tested.
